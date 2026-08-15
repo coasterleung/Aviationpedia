@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { getAirline, refLabel, displayName, aircraftName, getAlliance } from '../data'
 import { useUI } from '../store/ui'
 import ImageWithFallback from '../components/ImageWithFallback'
+import Avatar from '../components/Avatar'
 import { ActionButtons } from '../components/ActionButtons'
 import { notFound } from './NotFound'
 
@@ -41,9 +42,13 @@ export default function AirlineDetail() {
         <div>
           <div className="bg-white dark:bg-runway-900 border border-runway-200 dark:border-runway-700 rounded-2xl p-6">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-xl overflow-hidden bg-runway-100 dark:bg-runway-800 shrink-0">
-                <ImageWithFallback name={a.logo ?? a.image} alt={name} className="w-full h-full object-cover" width={200} />
-              </div>
+              {a.logo || a.image ? (
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-runway-100 dark:bg-runway-800 shrink-0">
+                  <ImageWithFallback name={a.logo ?? a.image} alt={name} className="w-full h-full object-cover" width={200} />
+                </div>
+              ) : (
+                <Avatar seed={a.id} name={name} className="w-16 h-16 rounded-xl shrink-0 text-2xl" />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <div>

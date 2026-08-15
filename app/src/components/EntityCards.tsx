@@ -4,6 +4,7 @@ import type { Aircraft, Airline } from '../data/types'
 import { refLabel, displayName } from '../data'
 import { useUI } from '../store/ui'
 import ImageWithFallback from './ImageWithFallback'
+import Avatar from './Avatar'
 
 export function AircraftCard({ aircraft }: { aircraft: Aircraft }) {
   const { t } = useTranslation()
@@ -40,9 +41,13 @@ export function AirlineCard({ airline }: { airline: Airline }) {
       className="block bg-white dark:bg-runway-900 border border-runway-200 dark:border-runway-700 rounded-xl overflow-hidden lift"
     >
       <div className="p-3 flex items-center gap-3">
-        <div className="w-12 h-12 rounded-lg overflow-hidden bg-runway-100 dark:bg-runway-800 shrink-0">
-          <ImageWithFallback name={airline.logo ?? airline.image} alt={displayName(airline.en, airline.zh, lang)} className="w-full h-full object-cover" width={120} />
-        </div>
+        {airline.logo || airline.image ? (
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-runway-100 dark:bg-runway-800 shrink-0">
+            <ImageWithFallback name={airline.logo ?? airline.image} alt={displayName(airline.en, airline.zh, lang)} className="w-full h-full object-cover" width={120} />
+          </div>
+        ) : (
+          <Avatar seed={airline.id} name={displayName(airline.en, airline.zh, lang)} className="w-12 h-12 rounded-lg shrink-0 text-base" />
+        )}
         <div className="min-w-0">
           <div className="font-semibold text-sm truncate">
             {displayName(airline.en, airline.zh, lang)}

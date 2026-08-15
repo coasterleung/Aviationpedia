@@ -16,8 +16,10 @@ function spa404() {
   }
 }
 
-export default defineConfig({
-  base: '/Aviationpedia/',
+export default defineConfig(({ command }) => ({
+  // Production build deploys under /Aviationpedia/ on GitHub Pages;
+  // dev server stays at the root for a normal local workflow.
+  base: command === 'build' ? '/Aviationpedia/' : '/',
   plugins: [
     spa404(),
     react(),
@@ -65,4 +67,4 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 6000,
   },
-})
+}))

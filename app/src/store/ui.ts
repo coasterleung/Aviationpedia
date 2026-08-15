@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import i18n from '../i18n'
 import type { EntityKind } from '../data/types'
 
 export type Lang = 'en' | 'zh'
@@ -29,7 +30,11 @@ export const useUI = create<UIState>()(
       lang: 'zh',
       theme: 'light',
       compare: [],
-      setLang: (lang) => set({ lang }),
+      setLang: (lang) => {
+        set({ lang })
+        void i18n.changeLanguage(lang)
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
+      },
       toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
       toggleCompare: (entry) =>
         set((s) => {

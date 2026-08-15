@@ -67,7 +67,7 @@ export default function AircraftList() {
           }}
           className="px-4 py-2 rounded-xl bg-white dark:bg-runway-900 border border-runway-200 dark:border-runway-700 outline-none text-sm max-w-full md:max-w-xs"
         >
-          <option value="all">{t('manufacturers.title')}（全部）</option>
+          <option value="all">{t('aircraft.allManufacturers')}</option>
           {manufacturers.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} ({m.count})

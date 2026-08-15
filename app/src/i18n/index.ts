@@ -16,7 +16,7 @@ const resources = {
       },
       search: { placeholder: 'Search…', noResults: 'No results found' },
       aircraft: {
-        title: 'Aircraft', subtitle: 'Browse by manufacturer or search',
+        title: 'Aircraft', subtitle: 'Browse by manufacturer or search', allManufacturers: 'All manufacturers',
         manufacturer: 'Manufacturer', firstFlight: 'First flight', serviceEntry: 'Service entry',
         length: 'Length', wingspan: 'Wingspan', height: 'Height', width: 'Width',
         range: 'Range', speed: 'Max speed', wingArea: 'Wing area', capacity: 'Capacity',
@@ -38,7 +38,7 @@ const resources = {
       favorites: { title: 'Favorites', subtitle: 'Saved for offline viewing', empty: 'No favorites yet — tap the ★ on any aircraft or airline to save it.' },
       compare: { title: 'Compare', subtitle: 'Select up to 3 items to compare side by side', empty: 'Nothing selected yet. Use "Compare" on aircraft or airline pages.', addPrompt: 'Add items from detail pages', remove: 'Remove', clearAll: 'Clear all', field: 'Specification' },
       detail: { back: 'Back', addFavorite: 'Save', removeFavorite: 'Saved', addCompare: 'Compare', wikiLink: 'View on Wikipedia', dataCredit: 'Data from Wikidata & OpenFlights' },
-      common: { loading: 'Loading…', language: 'Language', theme: 'Theme', light: 'Light', dark: 'Dark' },
+      common: { loading: 'Loading…', language: 'Language', theme: 'Theme', light: 'Light', dark: 'Dark', notFound: 'Not found', backHome: 'Home' },
     },
   },
   zh: {
@@ -55,7 +55,7 @@ const resources = {
       },
       search: { placeholder: '搜索…', noResults: '未找到结果' },
       aircraft: {
-        title: '机型', subtitle: '按制造商浏览或搜索',
+        title: '机型', subtitle: '按制造商浏览或搜索', allManufacturers: '全部制造商',
         manufacturer: '制造商', firstFlight: '首飞', serviceEntry: '服役',
         length: '机长', wingspan: '翼展', height: '机高', width: '机身宽',
         range: '航程', speed: '最大速度', wingArea: '翼面积', capacity: '载客量',
@@ -77,7 +77,7 @@ const resources = {
       favorites: { title: '收藏', subtitle: '离线也能查看', empty: '还没有收藏——在任意机型或航司页点 ★ 即可收藏。' },
       compare: { title: '对比', subtitle: '最多选择 3 项进行对比', empty: '还没有选择内容。在详情页使用"对比"按钮添加。', addPrompt: '从详情页添加项目', remove: '移除', clearAll: '清空', field: '规格' },
       detail: { back: '返回', addFavorite: '收藏', removeFavorite: '已收藏', addCompare: '对比', wikiLink: '在维基百科查看', dataCredit: '数据来自 Wikidata 与 OpenFlights' },
-      common: { loading: '加载中…', language: '语言', theme: '主题', light: '浅色', dark: '深色' },
+      common: { loading: '加载中…', language: '语言', theme: '主题', light: '浅色', dark: '深色', notFound: '未找到', backHome: '首页' },
     },
   },
 }

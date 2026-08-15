@@ -23,7 +23,8 @@ console.log(`loaded: ${rawAircraft.length} aircraft, ${rawAirlines.length} airli
 // Manufacturers: query directly
 const mfrRows = await sparql(`
 SELECT DISTINCT ?mfr ?mfrLabel ?zhLabel WHERE {
-  ?a wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?a wdt:P31 ?cls .
   ?a wdt:P176 ?mfr .
   ?mfr rdfs:label ?mfrLabel . FILTER(LANG(?mfrLabel)="en")
   OPTIONAL { ?mfr rdfs:label ?zhLabel . FILTER(LANG(?zhLabel)="zh") }

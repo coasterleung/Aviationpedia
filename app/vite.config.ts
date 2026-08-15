@@ -45,7 +45,7 @@ export default defineConfig(({ command }) => ({
       workbox: {
         // The app is fully bundled (data included), so precache everything.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         runtimeCaching: [
           {
             // Wikimedia Commons images: cache-first for offline viewing
@@ -65,6 +65,6 @@ export default defineConfig(({ command }) => ({
     }),
   ],
   build: {
-    chunkSizeWarningLimit: 6000,
+    chunkSizeWarningLimit: 10000,
   },
 }))

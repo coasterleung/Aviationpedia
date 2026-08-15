@@ -22,7 +22,7 @@ SELECT ?item ?itemLabel ?zhLabel ?desc
   (GROUP_CONCAT(DISTINCT ?image; separator="|") AS ?images)
   (GROUP_CONCAT(DISTINCT ?poweredBy; separator="|") AS ?poweredBys)
 WHERE {
-  VALUES ?instanceOf { wd:Q15056993 }
+  VALUES ?instanceOf { wd:Q15056993 wd:Q15056995 }
   ?item wdt:P31 ?instanceOf .
   OPTIONAL { ?item wdt:P176 ?manufacturer . }
   OPTIONAL { ?item wdt:P1083 ?capacity . }
@@ -43,7 +43,8 @@ LIMIT 50000
 // ---- Query B: variants ----
 const QUERY_B = `
 SELECT ?item ?variant WHERE {
-  ?item wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?item wdt:P31 ?cls .
   ?item wdt:P527 ?variant .
 }
 LIMIT 50000
@@ -52,7 +53,8 @@ LIMIT 50000
 // ---- Query C: operators ----
 const QUERY_C = `
 SELECT ?item ?operator WHERE {
-  ?item wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?item wdt:P31 ?cls .
   ?item wdt:P137 ?operator .
 }
 LIMIT 50000
@@ -72,7 +74,8 @@ const MEASUREMENTS: { field: string; prop: string }[] = [
 // ---- Query E: based-on relationships ----
 const QUERY_E = `
 SELECT ?item ?basedOn WHERE {
-  ?item wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?item wdt:P31 ?cls .
   ?item wdt:P144 ?basedOn .
 }
 LIMIT 50000
@@ -81,7 +84,8 @@ LIMIT 50000
 // ---- Query F: mass ----
 const QUERY_F = `
 SELECT ?item ?amount ?unit WHERE {
-  ?item wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?item wdt:P31 ?cls .
   ?item p:P2067 ?s .
   ?s psv:P2067 ?vs .
   ?vs wikibase:quantityAmount ?amount .
@@ -92,7 +96,8 @@ LIMIT 50000
 
 const QUERY_D = (prop: string) => `
 SELECT ?item ?amount ?unit WHERE {
-  ?item wdt:P31 wd:Q15056993 .
+  VALUES ?cls { wd:Q15056993 wd:Q15056995 }
+  ?item wdt:P31 ?cls .
   ?item p:${prop} ?s .
   ?s psv:${prop} ?vs .
   ?vs wikibase:quantityAmount ?amount .
@@ -118,8 +123,47 @@ interface RawAircraft {
   basedOn: string[]; mass: number | null; massUnit: string | null;
 }
 
+
+// ---- Curated supplement: notable aircraft outside the family/model classes ----
+// e.g. Comac C909 (Q44654) is classified as "jet aircraft" / "regional airliner".
+const SUPPLEMENT_QIDS = ['Q44654'];
+const SUPPLEMENT_VALUES = SUPPLEMENT_QIDS.map((id) => 'wd:' + id).join(' ');
+
+const QUERY_SUPPLEMENT = `
+SELECT ?item ?itemLabel ?zhLabel ?desc
+  (GROUP_CONCAT(DISTINCT ?instanceOf; separator="|") AS ?instanceOfs)
+  (SAMPLE(?manufacturer) AS ?manufacturer)
+  (SAMPLE(?capacity) AS ?capacity)
+  (SAMPLE(?produced) AS ?produced)
+  (SAMPLE(?firstFlight) AS ?firstFlight)
+  (SAMPLE(?serviceEntry) AS ?serviceEntry)
+  (SAMPLE(?inception) AS ?inception)
+  (GROUP_CONCAT(DISTINCT ?image; separator="|") AS ?images)
+  (GROUP_CONCAT(DISTINCT ?poweredBy; separator="|") AS ?poweredBys)
+WHERE {
+  VALUES ?item { ${SUPPLEMENT_VALUES} }
+  OPTIONAL { ?item wdt:P176 ?manufacturer . }
+  OPTIONAL { ?item wdt:P1083 ?capacity . }
+  OPTIONAL { ?item wdt:P1092 ?produced . }
+  OPTIONAL { ?item wdt:P606 ?firstFlight . }
+  OPTIONAL { ?item wdt:P729 ?serviceEntry . }
+  OPTIONAL { ?item wdt:P571 ?inception . }
+  OPTIONAL { ?item wdt:P18 ?image . }
+  OPTIONAL { ?item wdt:P516 ?poweredBy . }
+  OPTIONAL { ?item schema:description ?desc . FILTER(LANG(?desc)="en") }
+  ?item rdfs:label ?itemLabel . FILTER(LANG(?itemLabel)="en")
+  OPTIONAL { ?item rdfs:label ?zhLabel . FILTER(LANG(?zhLabel)="zh") }
+}
+GROUP BY ?item ?itemLabel ?zhLabel ?desc
+LIMIT 500
+`;
+
 console.log('[fetch] Query A: core...');
 const rowsA = await sparql(QUERY_A);
+// Supplement rows
+const rowsSupp = await sparql(QUERY_SUPPLEMENT);
+console.log(`[fetch] supplement: ${rowsSupp.length} curated items`);
+const rowsA_all = [...rowsA, ...rowsSupp];
 console.log('[fetch] Query B: variants...');
 const rowsB = await sparql(QUERY_B);
 console.log('[fetch] Query C: operators...');
@@ -161,6 +205,7 @@ for (const r of rowsF) {
 console.log(`  -> ${massOf.size} items have mass`);
 
 const variants = new Map<string, string[]>();
+const suppIds = new Set(rowsSupp.map((r) => qid(r, 'item')));
 for (const r of rowsB) {
   const itemId = qid(r, 'item')!;
   const v = qid(r, 'variant');
@@ -176,7 +221,7 @@ for (const r of rowsC) {
 const toIdList = (s: string | null, stripUrl = true): string[] =>
   (s ?? '').split('|').filter(Boolean).map((x) => (stripUrl ? x.split('/').pop()! : x));
 
-const aircraft: RawAircraft[] = rowsA.map((b) => {
+const aircraft: RawAircraft[] = rowsA_all.map((b) => {
   const id = qid(b, 'item')!;
   const m = measurements[id] ?? {};
   return {
@@ -218,6 +263,8 @@ assertContains(
     { id: 'Q6475', name: 'Airbus A320 family' },
     { id: 'Q179', name: 'Boeing 747' },
     { id: 'Q5830', name: 'Airbus A380' },
+    { id: 'Q429894', name: 'Comac C919' },
+    { id: 'Q44654', name: 'Comac C909' },
   ],
   'aircraft'
 );

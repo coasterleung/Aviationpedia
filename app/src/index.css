@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-runway-50: #f4f7fb;
+  --color-runway-100: #e6edf6;
+  --color-runway-200: #c9d8ea;
+  --color-runway-300: #a3bcd8;
+  --color-runway-400: #7aa0c4;
+  --color-runway-500: #5a84ad;
+  --color-runway-600: #466b92;
+  --color-runway-700: #3b5877;
+  --color-runway-800: #334a63;
+  --color-runway-900: #2e3f54;
+  --color-runway-950: #1f2a3a;
+  --color-altitude-400: #f5b83d;
+  --color-altitude-500: #e8a020;
+  --color-altitude-600: #c98615;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-runway-50 text-runway-950 antialiased;
+}
+
+.dark body {
+  @apply bg-runway-950 text-runway-100;
+}
+
+/* Thin scrollbars for list panels */
+.nice-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.nice-scroll::-webkit-scrollbar-thumb { @apply bg-runway-300 rounded-full; }
+.dark .nice-scroll::-webkit-scrollbar-thumb { @apply bg-runway-700; }
+.nice-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Card hover lift */
+.lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(31, 42, 58, 0.12); }
+
+/* Subtle fade-in for page content */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+main > * { animation: fadeUp 0.25s ease both; }

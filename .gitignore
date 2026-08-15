@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.npm-cache/
+data/generated/
+.DS_Store
+*.log
+
+# Capacitor native platforms (regenerate with: npx cap add ios android)
+app/ios/
+app/android/
+
+# Playwright test artifacts (regenerate with npx playwright install chromium)
+e2e/.browsers/
+e2e/node_modules/

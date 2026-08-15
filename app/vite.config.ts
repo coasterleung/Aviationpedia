@@ -2,11 +2,24 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { copyFileSync } from 'node:fs'
 
 // https://vite.dev/config/
+// GitHub Pages has no SPA fallback: serving the app shell as 404.html
+// makes deep links (e.g. /aircraft/Q5830) render via react-router.
+function spa404() {
+  return {
+    name: 'spa-404',
+    closeBundle() {
+      copyFileSync('dist/index.html', 'dist/404.html')
+    },
+  }
+}
+
 export default defineConfig({
   base: '/Aviationpedia/',
   plugins: [
+    spa404(),
     react(),
     tailwindcss(),
     VitePWA({

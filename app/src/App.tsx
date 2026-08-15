@@ -11,9 +11,12 @@ import Codes from './pages/Codes'
 import Compare from './pages/Compare'
 import Favorites from './pages/Favorites'
 
+// Vite base ('/Aviationpedia/' on GitHub Pages) must be stripped by the router
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />

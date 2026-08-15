@@ -64,6 +64,7 @@ export interface Manufacturer {
   en: string
   zh: string | null
   aircraftCount: number
+  country: string | null // country QID
 }
 
 export interface AircraftCode {

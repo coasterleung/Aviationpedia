@@ -292,6 +292,34 @@ const manufacturers = [...mfrLabels.entries()].map(([id, l]) => ({
   aircraftCount: aircraft.filter((a) => a.manufacturer === id).length,
 }));
 
+// Manufacturer countries (P17) — chunked VALUES queries
+const mfrIds = manufacturers.map((m) => m.id);
+const mfrCountry = new Map<string, string>(); // mfr QID -> country QID
+for (let i = 0; i < mfrIds.length; i += 400) {
+  const chunk = mfrIds.slice(i, i + 400).map((id) => 'wd:' + id).join(' ');
+  const rows = await sparql(`
+SELECT ?mfr ?country WHERE {
+  VALUES ?mfr { ${chunk} }
+  ?mfr wdt:P17 ?country .
+}`);
+  for (const r of rows) {
+    const mid = qid(r, 'mfr');
+    const cid = qid(r, 'country');
+    if (mid && cid && !mfrCountry.has(mid)) mfrCountry.set(mid, cid);
+  }
+}
+console.log(`manufacturer countries resolved: ${mfrCountry.size}/${mfrIds.length}`);
+
+// Fetch labels for manufacturer countries (merge into refs for display)
+const mfrCountryIds = new Set(mfrCountry.values());
+const mfrCountryLabels = await fetchLabels(mfrCountryIds, 400);
+for (const [cid, l] of mfrCountryLabels) refLabels.set(cid, l);
+
+// Attach country to manufacturers
+for (const m of manufacturers) {
+  m.country = mfrCountry.get(m.id) ?? null;
+}
+
 
 // ---------- Aircraft type codes (OpenFlights planes.dat) ----------
 const planesText = await readFile(new URL('../src/planes.dat', import.meta.url), 'utf8');

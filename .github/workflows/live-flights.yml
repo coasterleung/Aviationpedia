@@ -1,0 +1,63 @@
+name: Live Flights Data
+
+on:
+  schedule:
+    # Every 5 minutes — OpenSky free tier is ~400 credits/day (288 requests at 5min cadence)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch China-region aircraft states from OpenSky
+        run: |
+          mkdir -p /tmp/live
+          curl -sS --max-time 30 \
+            -H "User-Agent: aviationpedia-live-data/0.1" \
+            "https://opensky-network.org/api/states/all?lamin=18&lomin=73&lamax=54&lomax=135" \
+            -o /tmp/live/raw.json
+          echo "raw size: $(wc -c < /tmp/live/raw.json) bytes"
+
+      - name: Compact data
+        run: |
+          node -e '
+            const fs = require("fs");
+            const raw = JSON.parse(fs.readFileSync("/tmp/live/raw.json", "utf8"));
+            // Keep essential fields: icao24, callsign, country, lon, lat, baroAlt, onGround, vel, track, vrate, geoAlt
+            const states = (raw.states ?? []).map((s) => [
+              s[0],                        // icao24
+              (s[1] ?? "").trim(),         // callsign
+              s[2] ?? "",                  // origin country
+              s[5],                        // longitude
+              s[6],                        // latitude
+              s[7],                        // barometric altitude (m)
+              s[8] === true ? 1 : 0,       // on ground
+              s[9] ?? null,                // velocity (m/s)
+              s[10] ?? null,               // true track (deg)
+              s[11] ?? null,               // vertical rate (m/s)
+              s[13] ?? null,               // geo altitude (m)
+            ]);
+            const out = { fetchedAt: Date.now(), time: raw.time, count: states.length, states };
+            fs.writeFileSync("/tmp/live/flights.json", JSON.stringify(out));
+            console.log("compacted:", states.length, "states,", (fs.statSync("/tmp/live/flights.json").size / 1024).toFixed(1), "KB");
+          '
+
+      - name: Push to live-data branch (force, single commit)
+        run: |
+          git config user.name "Aviationpedia Bot"
+          git config user.email "bot@aviationpedia.local"
+          git checkout --orphan live-data
+          rm -rf ./*
+          mkdir -p data
+          cp /tmp/live/flights.json data/flights.json
+          git add -f data/flights.json
+          git commit -m "live flight data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin live-data --force

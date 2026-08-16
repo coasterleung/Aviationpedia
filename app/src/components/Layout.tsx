@@ -10,6 +10,7 @@ const navItems = [
   { to: '/airlines', key: 'nav.airlines' },
   { to: '/manufacturers', key: 'nav.manufacturers' },
   { to: '/codes', key: 'nav.codes' },
+  { to: '/live', key: 'nav.live' },
   { to: '/alliances', key: 'nav.alliances' },
 ] as const
 

@@ -8,6 +8,7 @@ import AirlineDetail from './pages/AirlineDetail'
 import ManufacturerList from './pages/ManufacturerList'
 import Alliances from './pages/Alliances'
 import Codes from './pages/Codes'
+import LiveFlights from './pages/LiveFlights'
 import Compare from './pages/Compare'
 import Favorites from './pages/Favorites'
 
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/manufacturers" element={<ManufacturerList />} />
           <Route path="/alliances" element={<Alliances />} />
           <Route path="/codes" element={<Codes />} />
+          <Route path="/live" element={<LiveFlights />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="*" element={<Home />} />

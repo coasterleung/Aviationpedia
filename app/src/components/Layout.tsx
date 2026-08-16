@@ -41,7 +41,7 @@ export default function Layout() {
             <span className="font-bold hidden sm:block text-sm">{t('app.name')}</span>
           </NavLink>
 
-          <nav className="hidden md:flex items-center gap-1 text-sm">
+          <nav className="hidden lg:flex items-center gap-1 text-sm">
             {navItems.map((n) => (
               <NavLink
                 key={n.to}
@@ -61,7 +61,7 @@ export default function Layout() {
           </nav>
 
           <div className="flex-1 flex justify-end items-center gap-2">
-            <div className="hidden sm:block w-64">
+            <div className="hidden lg:block w-64">
               <SearchBox />
             </div>
             <div className="flex items-center gap-1 text-xs border border-runway-200 dark:border-runway-700 rounded-lg p-0.5">
@@ -98,7 +98,7 @@ export default function Layout() {
         </div>
 
         {/* Mobile nav */}
-        <nav className="md:hidden flex items-center gap-1 text-xs px-3 pb-2 overflow-x-auto nice-scroll">
+        <nav className="lg:hidden flex items-center gap-1 text-xs px-3 pb-2 overflow-x-auto nice-scroll">
           {navItems.map((n) => (
             <NavLink
               key={n.to}

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAirline, refLabel, displayName, aircraftName, getAlliance } from '../data'
@@ -6,12 +7,21 @@ import ImageWithFallback from '../components/ImageWithFallback'
 import Avatar from '../components/Avatar'
 import { ActionButtons } from '../components/ActionButtons'
 import { notFound } from './NotFound'
+import { useLiveFlights, colorForAltitude } from '../hooks/useLiveFlights'
 
 export default function AirlineDetail() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
   const lang = useUI((s) => s.lang)
   const a = id ? getAirline(id) : undefined
+  const { flights: liveFlights, loading: liveLoading } = useLiveFlights()
+  const myFlights = useMemo(() => {
+    if (!a?.icao) return []
+    const prefix = a.icao.toUpperCase()
+    return liveFlights.filter(
+      (f) => f.callsign.startsWith(prefix) && f.callsign.length > prefix.length
+    )
+  }, [liveFlights, a?.icao])
 
   if (!a) return notFound(t('airlines.title'))
 
@@ -110,6 +120,43 @@ export default function AirlineDetail() {
               </div>
             </div>
           )}
+
+          {/* Live flights */}
+          <div className="mt-4 bg-white dark:bg-runway-900 border border-runway-200 dark:border-runway-700 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-sm">
+                {t('live.currentFlights')}
+                {myFlights.length > 0 && <span className="ml-2 text-xs text-runway-400">· {myFlights.length}</span>}
+              </h2>
+              <Link to="/live" className="text-xs text-altitude-600 hover:underline">
+                {t('live.viewLiveMap')}
+              </Link>
+            </div>
+            {liveLoading ? (
+              <div className="text-sm text-runway-400 py-3">{t('common.loading')}</div>
+            ) : !a.icao ? (
+              <div className="text-sm text-runway-400 py-2">{t('live.noIcao')}</div>
+            ) : myFlights.length === 0 ? (
+              <div className="text-sm text-runway-400 py-2">{t('live.noFlights')}</div>
+            ) : (
+              <ul className="divide-y divide-runway-100 dark:divide-runway-800 text-sm max-h-72 overflow-y-auto nice-scroll">
+                {myFlights.map((f) => (
+                  <li key={f.icao24} className="py-2 flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white" style={{ backgroundColor: colorForAltitude(f.baroAlt) }} />
+                    <span className="font-mono font-semibold text-xs">{f.callsign}</span>
+                    <span className="text-xs text-runway-500 dark:text-runway-400 flex-1 truncate">
+                      {f.baroAlt != null && f.baroAlt > 0
+                        ? Math.round(f.baroAlt).toLocaleString() + ' m'
+                        : t('live.ground')}
+                    </span>
+                    <span className="text-xs text-runway-500 dark:text-runway-400 shrink-0">
+                      {f.vel != null ? Math.round(f.vel * 3.6).toLocaleString() + ' km/h' : '—'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Right: info panel */}

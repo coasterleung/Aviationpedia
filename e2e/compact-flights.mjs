@@ -68,3 +68,13 @@ const states = (statesRaw.states ?? []).map((s) => {
 const out = { fetchedAt: Date.now(), time: statesRaw.time, count: states.length, states }
 writeFileSync(outPath, JSON.stringify(out))
 console.log('compacted states:', states.length, '| size:', (statSync(outPath).size / 1024).toFixed(1), 'KB')
+
+// Also emit a small icao24 -> [type, reg] lookup for the current airborne set (for the Worker)
+if (process.argv[5]) {
+  const lookupOut = {}
+  for (const s of states) {
+    if (s[11] || s[12]) lookupOut[String(s[0]).toLowerCase()] = [s[11], s[12]]
+  }
+  writeFileSync(process.argv[5], JSON.stringify(lookupOut))
+  console.log('lookup.json:', Object.keys(lookupOut).length, 'entries')
+}

@@ -12,3 +12,8 @@ app/android/
 # Playwright test artifacts (regenerate with npx playwright install chromium)
 e2e/.browsers/
 e2e/node_modules/
+
+# Cloudflare worker secrets & local config
+cloudflare/wrangler.toml
+cloudflare/.cfg/
+cloudflare/.wrangler-home/

@@ -12,6 +12,8 @@ export interface LiveFlight {
   track: number | null
   vrate: number | null
   geoAlt: number | null
+  typeCode: string | null
+  registration: string | null
 }
 
 // Live data: GitHub Actions pushes OpenSky China-region states to the live-data branch every 5 min.
@@ -60,6 +62,8 @@ export function useLiveFlights(pollMs = 60_000) {
           track: s[8] == null ? null : Number(s[8]),
           vrate: s[9] == null ? null : Number(s[9]),
           geoAlt: s[10] == null ? null : Number(s[10]),
+          typeCode: s[11] == null || String(s[11]) === 'null' ? null : String(s[11]),
+          registration: s[12] == null || String(s[12]) === 'null' ? null : String(s[12]),
         }))
         setFlights(list)
         setLastUpdate(typeof json.fetchedAt === 'number' ? json.fetchedAt : Date.now())

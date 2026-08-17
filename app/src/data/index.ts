@@ -69,6 +69,26 @@ function norm(s: string): string {
     .trim()
 }
 
+
+/** Best-effort match of an OpenSky type designator (e.g. "A320", "B738") to an aircraft entry. */
+export function findAircraftByTypeCode(typeCode: string): Aircraft | undefined {
+  const tc = typeCode.trim().toUpperCase()
+  if (!tc) return undefined
+  // 1. direct name contains match (e.g. "A320" in "Airbus A320 family")
+  const direct = aircraftList.find(
+    (a) => a.en.toUpperCase().includes(tc) || (a.zh ?? '').toUpperCase().includes(tc)
+  )
+  if (direct) return direct
+  // 2. bridge via aircraft type codes (OpenFlights planes.dat)
+  const code = aircraftCodeList.find((c) => c.iata.toUpperCase() === tc || c.icao.toUpperCase() === tc)
+  if (!code) return undefined
+  const key = code.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14)
+  if (key.length < 4) return undefined
+  return aircraftList.find(
+    (a) => a.en.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key)
+  )
+}
+
 /** Search aircraft by name / codes / description. Returns scored results. */
 export function searchAircraft(q: string, limit = 60): SearchHit<Aircraft>[] {
   const query = norm(q)

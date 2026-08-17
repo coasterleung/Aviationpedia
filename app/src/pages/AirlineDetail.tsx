@@ -144,10 +144,16 @@ export default function AirlineDetail() {
                   <li key={f.icao24} className="py-2 flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white" style={{ backgroundColor: colorForAltitude(f.baroAlt) }} />
                     <span className="font-mono font-semibold text-xs">{f.callsign}</span>
+                    {f.typeCode && (
+                      <span className="px-1.5 py-0.5 rounded bg-runway-100 dark:bg-runway-800 font-mono text-[11px] text-runway-600 dark:text-runway-300">
+                        {f.typeCode}
+                      </span>
+                    )}
                     <span className="text-xs text-runway-500 dark:text-runway-400 flex-1 truncate">
                       {f.baroAlt != null && f.baroAlt > 0
                         ? Math.round(f.baroAlt).toLocaleString() + ' m'
                         : t('live.ground')}
+                      {f.registration ? ' · ' + f.registration : ''}
                     </span>
                     <span className="text-xs text-runway-500 dark:text-runway-400 shrink-0">
                       {f.vel != null ? Math.round(f.vel * 3.6).toLocaleString() + ' km/h' : '—'}

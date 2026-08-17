@@ -2,31 +2,48 @@ import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { getAirline, displayName } from '../data'
+import { getAirline, displayName, findAircraftByTypeCode } from '../data'
 import { useUI } from '../store/ui'
 import { useLiveFlights, icaoPrefix, colorForAltitude } from '../hooks/useLiveFlights'
 
 export default function LiveFlights() {
   const { t } = useTranslation()
   const lang = useUI((s) => s.lang)
+  const theme = useUI((s) => s.theme)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapObj = useRef<L.Map | null>(null)
   const markers = useRef<L.CircleMarker[]>([])
   const { flights, loading, error, lastUpdate } = useLiveFlights()
 
+  const tileLayer = useRef<L.TileLayer | null>(null)
+
   useEffect(() => {
     if (!mapRef.current || mapObj.current) return
     const map = L.map(mapRef.current, { center: [34, 106], zoom: 4, zoomControl: true })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map)
+    const layer = L.tileLayer(
+      theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom: 19 }
+    ).addTo(map)
+    tileLayer.current = layer
     mapObj.current = map
     return () => {
       map.remove()
       mapObj.current = null
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Swap tiles when theme changes
+  useEffect(() => {
+    const map = mapObj.current
+    if (!map || !tileLayer.current) return
+    const url =
+      theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+    tileLayer.current.setUrl(url)
+  }, [theme])
 
   useEffect(() => {
     const map = mapObj.current
@@ -45,11 +62,14 @@ export default function LiveFlights() {
       })
       const airline = icaoPrefix(f.callsign) ? getAirline(icaoPrefix(f.callsign)) : undefined
       const name = airline ? displayName(airline.en, airline.zh, lang) : null
-      const popup = L.popup({ maxWidth: 260 }).setContent(
+      const aircraft = f.typeCode ? findAircraftByTypeCode(f.typeCode) : undefined
+      const popup = L.popup({ maxWidth: 280 }).setContent(
         '<div style="font-family: inherit">' +
           '<div style="font-weight:600;font-size:14px">' + (f.callsign || t('live.unknownCallsign')) + '</div>' +
           '<div style="font-size:12px;color:#666;margin:2px 0 6px">' + (name ?? f.country) + '</div>' +
           '<table style="font-size:12px;border-collapse:collapse;width:100%">' +
+          (f.typeCode ? '<tr><td style="color:#888;padding:1px 8px 1px 0">' + t('live.aircraft') + '</td><td style="font-weight:500">' + f.typeCode + (aircraft ? ' · <a href="aircraft/' + aircraft.id + '" style="color:#1d4ed8">' + displayName(aircraft.en, aircraft.zh, lang) + '</a>' : '') + '</td></tr>' : '') +
+          (f.registration ? '<tr><td style="color:#888;padding:1px 8px 1px 0">' + t('live.registration') + '</td><td style="font-weight:500;font-family:monospace">' + f.registration + '</td></tr>' : '') +
           (f.baroAlt != null ? '<tr><td style="color:#888;padding:1px 8px 1px 0">' + t('live.altitude') + '</td><td style="font-weight:500">' + Math.round(f.baroAlt).toLocaleString() + ' m</td></tr>' : '') +
           (f.vel != null ? '<tr><td style="color:#888;padding:1px 8px 1px 0">' + t('live.speed') + '</td><td style="font-weight:500">' + Math.round(f.vel * 3.6).toLocaleString() + ' km/h</td></tr>' : '') +
           (f.track != null ? '<tr><td style="color:#888;padding:1px 8px 1px 0">' + t('live.heading') + '</td><td style="font-weight:500">' + Math.round(f.track) + '°</td></tr>' : '') +

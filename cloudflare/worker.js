@@ -7,6 +7,8 @@ const OPENSKY_URL =
   'https://opensky-network.org/api/states/all?lamin=18&lomin=73&lamax=54&lomax=135'
 const LOOKUP_URL =
   'https://raw.githubusercontent.com/coasterleung/Aviationpedia/live-data/data/lookup.json'
+const FALLBACK_URL =
+  'https://raw.githubusercontent.com/coasterleung/Aviationpedia/live-data/data/flights.json'
 
 function compact(data, lookup) {
   const states = (data.states ?? []).map((s) => {
@@ -52,6 +54,17 @@ export default {
       return new Response('ok', { headers: cors })
     }
 
+    // manual refresh trigger (for testing/admin)
+    if (url.searchParams.get('refresh') === '1') {
+      try {
+        await refresh(env)
+        const d = await env.FLIGHTS.get('latest')
+        return new Response(d ? 'refreshed OK' : 'refresh done but empty', { headers: cors })
+      } catch (e) {
+        return new Response('refresh error: ' + String(e), { status: 500, headers: cors })
+      }
+    }
+
     // serve latest flights
     const data = await env.FLIGHTS.get('latest')
     if (!data) {
@@ -62,12 +75,13 @@ export default {
 }
 
 async function refresh(env) {
+  // Primary: fetch OpenSky directly (5-min freshness when reachable)
   try {
     const [statesRes, lookupRes] = await Promise.all([
       fetch(OPENSKY_URL, { headers: { 'User-Agent': 'aviationpedia-worker/0.1' } }),
       fetch(LOOKUP_URL, { headers: { 'User-Agent': 'aviationpedia-worker/0.1' } }).catch(() => null),
     ])
-    if (!statesRes.ok) return
+    if (!statesRes.ok) throw new Error('OpenSky HTTP ' + statesRes.status)
     const data = await statesRes.json()
     let lookup = null
     if (lookupRes && lookupRes.ok) {
@@ -75,8 +89,20 @@ async function refresh(env) {
     }
     const out = compact(data, lookup)
     await env.FLIGHTS.put('latest', out, { expirationTtl: 7200 })
-    console.log('flights refreshed:', JSON.parse(out).count, 'aircraft')
+    console.log('flights refreshed (opensky):', JSON.parse(out).count, 'aircraft')
+    return
+  } catch (e) {
+    console.log('opensky unavailable, fallback to github data:', String(e))
+  }
+  // Fallback: serve the GitHub-workflow-pushed enriched data (still fresh from GitHub cron)
+  try {
+    const fb = await fetch(FALLBACK_URL, { headers: { 'User-Agent': 'aviationpedia-worker/0.1' } })
+    if (!fb.ok) throw new Error('fallback HTTP ' + fb.status)
+    const j = await fb.json()
+    await env.FLIGHTS.put('latest', JSON.stringify(j), { expirationTtl: 7200 })
+    console.log('flights refreshed (fallback):', j.count, 'aircraft')
   } catch (e) {
     console.error('refresh failed:', String(e))
+    throw e
   }
 }

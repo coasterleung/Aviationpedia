@@ -13,7 +13,9 @@ app/android/
 e2e/.browsers/
 e2e/node_modules/
 
-# Cloudflare worker secrets & local config
+# Cloudflare worker local config & caches
 cloudflare/wrangler.toml
 cloudflare/.cfg/
+cloudflare/.cfg2/
+cloudflare/.wrangler/
 cloudflare/.wrangler-home/

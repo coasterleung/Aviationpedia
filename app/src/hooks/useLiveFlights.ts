@@ -17,7 +17,8 @@ export interface LiveFlight {
 }
 
 // Live data: GitHub Actions pushes OpenSky China-region states to the live-data branch every 5 min.
-export const LIVE_DATA_URL = 'https://aviationpedia-live.aviationpedia.workers.dev'
+export const LIVE_DATA_URL =
+  'https://raw.githubusercontent.com/coasterleung/Aviationpedia/live-data/data/flights.json'
 
 /** Parse the 3-letter ICAO prefix from a callsign (e.g. "CSN3456" -> "CSN"). */
 export function icaoPrefix(callsign: string): string {

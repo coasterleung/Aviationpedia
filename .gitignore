@@ -19,3 +19,5 @@ cloudflare/.cfg/
 cloudflare/.cfg2/
 cloudflare/.wrangler/
 cloudflare/.wrangler-home/
+
+.live-cache/

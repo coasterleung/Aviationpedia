@@ -1,0 +1,11 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch()
+const p = await b.newPage({ viewport: { width: 1440, height: 900 } })
+await p.goto('http://localhost:5173/manufacturers', { waitUntil: 'networkidle' })
+await p.waitForTimeout(2000)
+const opts = await p.locator('main select option').evaluateAll((os) => os.slice(0, 15).map(o => o.value + ' = ' + o.textContent))
+console.log('前15个选项:', JSON.stringify(opts, null, 1))
+// Search for the option containing Q148 (China)
+const q148 = await p.locator('main select option').evaluateAll((os) => os.filter(o => o.value === 'Q148').map(o => o.textContent))
+console.log('Q148 选项:', q148)
+await b.close()

@@ -25,7 +25,10 @@
 ## 未来迭代方向
 
 - 机型↔航司双向机队关系完善（当前用 P121/P137，覆盖率有限）
-- 图片离线缓存（运行时缓存到 IndexedDB）
 - 航班时刻/机票搜索等动态数据（需后端 API）
 - 原生壳（Capacitor）打包 iOS/Android
-- 数据更新调度（GitHub Actions 定期跑管道）
+
+## 已落地增强
+
+- **图片离线缓存**：`ImageWithFallback` 离线优先 —— 视图挂载时主动把 Wikimedia Commons 图片以 Blob 形式存入 IndexedDB（`imageCache` 表，Dexie v2），离线时优先从本地读取；收藏页进入时批量预取收藏项图片，确保离线可用。Service Worker（vite-plugin-pwa）仍对访问过的图片做 CacheFirst 运行时缓存作为双层兜底。
+- **数据自动更新调度**：`.github/workflows/update-data.yml` 每周日 UTC 定时重跑数据管道（fetch-aircraft / fetch-airlines / build），仅当 `encyclopaedia.json` 内容变化时才提交推送，触发 Pages 重新部署。

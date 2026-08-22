@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAircraft, getAirline } from '../data'
 import { useFavorites } from '../hooks/useFavorites'
+import { prefetchImages } from '../hooks/useImageCache'
 import { AircraftCard, AirlineCard } from '../components/EntityCards'
 
 export default function Favorites() {
@@ -9,6 +11,15 @@ export default function Favorites() {
 
   const aircraft = favorites.filter((f) => f.kind === 'aircraft').map((f) => getAircraft(f.id)).filter((x) => !!x)
   const airlines = favorites.filter((f) => f.kind === 'airline').map((f) => getAirline(f.id)).filter((x) => !!x)
+
+  // Warm the offline image cache for favorites so they render without network.
+  useEffect(() => {
+    const names: (string | null)[] = []
+    for (const a of aircraft) names.push(a!.images[0])
+    for (const a of airlines) names.push(a!.logo ?? a!.image)
+    if (names.length) void prefetchImages(names, 800)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favorites.length])
 
   if (favorites.length === 0) {
     return (

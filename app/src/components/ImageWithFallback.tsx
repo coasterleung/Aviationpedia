@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useImageCache } from '../hooks/useImageCache'
 
 interface Props {
   name: string | null | undefined
@@ -7,10 +8,14 @@ interface Props {
   width?: number
 }
 
-/** Commons Special:FilePath image with graceful fallback. */
+/** Commons Special:FilePath image with offline-aware caching + graceful fallback. */
 export default function ImageWithFallback({ name, alt, className = '', width = 800 }: Props) {
   const [failed, setFailed] = useState(false)
-  if (!name || failed) {
+  // Offline-first: try IndexedDB cache, then network; also prefetch into cache.
+  const cachedSrc = useImageCache(name, width)
+  const showFallback = !name || (failed && !cachedSrc)
+
+  if (showFallback) {
     return (
       <div className={`flex items-center justify-center bg-runway-100 dark:bg-runway-800 text-runway-400 ${className}`} role="img" aria-label={alt}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-1/3 h-1/3">
@@ -19,22 +24,29 @@ export default function ImageWithFallback({ name, alt, className = '', width = 8
       </div>
     )
   }
-  // Names from the pipeline are already URL-encoded (Wikidata Special:FilePath form).
-  // Decode first so we never double-encode (%20 -> %2520 -> 404).
-  let clean = name
-  try {
-    clean = decodeURIComponent(name)
-  } catch {
-    // keep as-is if not valid percent-encoding
-  }
-  const src = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(clean)}?width=${width}`
+
+  // Prefer the offline-cached blob; fall back to the network URL (cachedSrc is null until fetched).
+  const src = cachedSrc ?? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(
+    (() => {
+      try {
+        return decodeURIComponent(name!)
+      } catch {
+        return name!
+      }
+    })(),
+  )}?width=${width}`
+
   return (
     <img
       src={src}
       alt={alt}
       loading="lazy"
       className={className}
-      onError={() => setFailed(true)}
+      onError={() => {
+        // If the network failed but we have a cached blob, keep showing it.
+        if (cachedSrc) return
+        setFailed(true)
+      }}
     />
   )
 }

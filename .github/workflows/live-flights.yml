@@ -2,12 +2,17 @@ name: Live Flights Data
 
 on:
   schedule:
-    # Every 5 minutes — OpenSky free tier is ~400 credits/day (288 requests at 5min cadence)
-    - cron: '*/5 * * * *'
+    # Every 30 minutes at the half-hour — modest, compliance-friendly cadence.
+    # OpenSky free tier is ~400 credits/day; ~48 requests/day stays well under.
+    - cron: '30 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: live-data
+  cancel-in-progress: true
 
 jobs:
   fetch:
@@ -17,14 +22,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch China-region aircraft states from OpenSky
+      # Read the current live-data branch state so we can honor backoff + preserve old data.
+      - name: Check out live-data branch
         run: |
-          mkdir -p /tmp/live
-          curl -sS --max-time 30 \
-            -H "User-Agent: aviationpedia-live-data/0.1" \
-            "https://opensky-network.org/api/states/all?lamin=18&lomin=73&lamax=54&lomax=135" \
-            -o /tmp/live/raw.json
-          echo "raw size: $(wc -c < /tmp/live/raw.json) bytes"
+          git fetch origin live-data 2>/dev/null || true
+          if git rev-parse --verify origin/live-data >/dev/null 2>&1; then
+            git checkout -B work origin/live-data
+            echo "checked out existing live-data branch"
+          else
+            git checkout --orphan work
+            git rm -r --cached . -q 2>/dev/null || true
+            echo "created orphan work branch"
+          fi
 
       - name: Get date
         id: date
@@ -46,49 +55,31 @@ jobs:
             -o /tmp/aircraftDatabase.csv
           echo "db size: $(wc -c < /tmp/aircraftDatabase.csv) bytes"
 
-      - name: Compact data (join aircraft type + registration)
+      # Fetch + compact + stateful backoff. On failure this only writes state.json,
+      # leaving the previous good data/flights.json intact for the front-end.
+      - name: Fetch and compact (stateful backoff)
+        id: fetch
         run: |
-          node -e '
-            const fs = require("fs");
-            const raw = JSON.parse(fs.readFileSync("/tmp/live/raw.json", "utf8"));
-            // icao24 -> [type, reg] lookup from aircraftDatabase.csv (fields: icao24, registration, ..., typecode)
-            const lookup = new Map();
-            if (fs.existsSync("/tmp/aircraftDatabase.csv")) {
-              const lines = fs.readFileSync("/tmp/aircraftDatabase.csv", "utf8").split("\n");
-              for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                if (!line) continue;
-                const m = line.match(/^"([^"]*)","([^"]*)",(?:[^,]*,){3}"([^"]*)"/);
-                if (m && m[1]) lookup.set(m[1].toLowerCase(), [m[3] || "", m[2] || ""]);
-              }
-              console.log("aircraft db rows loaded:", lookup.size);
-            }
-            const states = (raw.states ?? []).map((s) => {
-              const meta = lookup.get(String(s[0]).toLowerCase());
-              return [
-                s[0], (s[1] ?? "").trim(), s[2] ?? "", s[5], s[6], s[7],
-                s[8] === true ? 1 : 0, s[9] ?? null, s[10] ?? null, s[11] ?? null, s[13] ?? null,
-                meta?.[0] ?? null, meta?.[1] ?? null,
-              ];
-            });
-            const out = { fetchedAt: Date.now(), time: raw.time, count: states.length, states };
-            fs.writeFileSync("/tmp/live/flights.json", JSON.stringify(out));
-            // small lookup for the Worker (icao24 -> [type, reg])
-            const lookupOut = {};
-            for (const s of states) if (s[11] || s[12]) lookupOut[String(s[0]).toLowerCase()] = [s[11], s[12]];
-            fs.writeFileSync("/tmp/live/lookup.json", JSON.stringify(lookupOut));
-            console.log("compacted:", states.length, "states,", (fs.statSync("/tmp/live/flights.json").size / 1024).toFixed(1), "KB, lookup:", Object.keys(lookupOut).length);
-          '
+          mkdir -p /tmp/live
+          cp -f data/flights.json /tmp/live/flights.json 2>/dev/null || true
+          cp -f data/lookup.json /tmp/live/lookup.json 2>/dev/null || true
+          cp -f data/state.json /tmp/live/state.json 2>/dev/null || true
+          node --experimental-strip-types e2e/fetch-live.mjs opensky \
+            /tmp/live/raw.json /tmp/live/flights.json \
+            /tmp/aircraftDatabase.csv /tmp/live/state.json /tmp/live/state.json /tmp/live/lookup.json
+          echo "FETCH_OK=$?" >> "$GITHUB_OUTPUT"
 
+      # Push: always publish state.json (so backoff persists) and, when a fetch
+      # succeeded, the fresh flights.json + lookup.json.
       - name: Push to live-data branch (force, single commit)
         run: |
           git config user.name "Aviationpedia Bot"
           git config user.email "bot@aviationpedia.local"
-          git checkout --orphan live-data
-          rm -rf ./*
           mkdir -p data
-          cp /tmp/live/flights.json data/flights.json
-          cp /tmp/live/lookup.json data/lookup.json
-          git add -f data/flights.json data/lookup.json
-          git commit -m "live flight data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cp -f /tmp/live/state.json data/state.json 2>/dev/null || true
+          cp -f /tmp/live/flights.json data/flights.json 2>/dev/null || true
+          cp -f /tmp/live/lookup.json data/lookup.json 2>/dev/null || true
+          git add -f data/state.json data/flights.json data/lookup.json
+          git commit -m "live flight data $(date -u +%Y-%m-%dT%H:%M:%SZ) [${FETCH_OK-failed}]" || echo "nothing to commit"
+          git branch -M live-data
           git push origin live-data --force

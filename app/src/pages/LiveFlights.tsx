@@ -13,7 +13,7 @@ export default function LiveFlights() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapObj = useRef<L.Map | null>(null)
   const markers = useRef<L.CircleMarker[]>([])
-  const { flights, loading, error, lastUpdate } = useLiveFlights()
+  const { flights, loading, error, lastUpdate, source, stale } = useLiveFlights()
 
   const tileLayer = useRef<L.TileLayer | null>(null)
 
@@ -103,6 +103,22 @@ export default function LiveFlights() {
               : t('common.loading')}
           </div>
         </div>
+      </div>
+
+      {/* Data source + freshness status */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-runway-100 dark:bg-runway-800 text-runway-600 dark:text-runway-300">
+          <span className={`w-2 h-2 rounded-full ${stale ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+          {source === 'opensky' ? 'OpenSky Network (ADS-B)' : source ?? t('live.source')}
+        </span>
+        {stale && (
+          <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300">
+            {t('live.stale')}
+          </span>
+        )}
+        <span className="text-runway-400">
+          {t('live.refresh')}: {t('live.refreshInterval')}
+        </span>
       </div>
 
       <div className="mt-4 grid lg:grid-cols-[1fr_280px] gap-4">

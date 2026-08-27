@@ -16,7 +16,7 @@ export interface LiveFlight {
   registration: string | null
 }
 
-// Live data: GitHub Actions pushes OpenSky China-region states to the live-data branch every 5 min.
+// Live data: GitHub Actions pushes OpenSky China-region states to the live-data branch.
 export const LIVE_DATA_URL =
   'https://raw.githubusercontent.com/coasterleung/Aviationpedia/live-data/data/flights.json'
 
@@ -41,6 +41,8 @@ export function useLiveFlights(pollMs = 60_000) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<number | null>(null)
+  const [source, setSource] = useState<string | null>(null)
+  const [stale, setStale] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -66,7 +68,11 @@ export function useLiveFlights(pollMs = 60_000) {
           registration: s[12] == null || String(s[12]) === 'null' ? null : String(s[12]),
         }))
         setFlights(list)
-        setLastUpdate(typeof json.fetchedAt === 'number' ? json.fetchedAt : Date.now())
+        const fetchedAt = typeof json.fetchedAt === 'number' ? json.fetchedAt : Date.now()
+        setLastUpdate(fetchedAt)
+        // Freshness: prefer the explicit `stale` flag; otherwise flag older than 2h.
+        setStale(json.stale === true || (fetchedAt && Date.now() - fetchedAt > 2 * 60 * 60 * 1000))
+        setSource(typeof json.source === 'string' ? json.source : null)
         setError(null)
       } catch (e) {
         if (!cancelled) setError(String(e instanceof Error ? e.message : e))
@@ -82,5 +88,5 @@ export function useLiveFlights(pollMs = 60_000) {
     }
   }, [pollMs])
 
-  return { flights, loading, error, lastUpdate }
+  return { flights, loading, error, lastUpdate, source, stale }
 }

@@ -55,3 +55,29 @@ GitHub Actions 工作流（live-flights.yml）
 - 应用数据 Hook：`app/src/hooks/useLiveFlights.ts`（`LIVE_DATA_URL` 可切换数据源）
 - 实时页面：`app/src/pages/LiveFlights.tsx`
 - 航司联动：`app/src/pages/AirlineDetail.tsx`
+
+## 六、有状态的合规限流与多源适配（2026-08 落地）
+
+针对「免费 API 请求受限 / 被 IP 封锁」的基线问题，采用**合规**的工程手段（不轮换 IP、不伪装来源、不超频撞限流），并让数据源可替换。
+
+### 1. 固定 + 有状态的退避调度
+- 调度从 `*/5` 改为 **每 30 分钟一次**（`30 * * * *`），约 48 请求/天，远低于 OpenSky 免费额度。
+- 状态记录在 `live-data` 分支的 `data/state.json`，由 `e2e/fetch-live.mjs` 维护：
+  - 抓取失败 → 写 `status: degraded` 与**指数退避** `nextRetryAt`（30 min → 1h → 2h → 4h）。
+  - 下次运行若 `nextRetryAt` 在未来 → **跳过本次抓取**（不撞限流），仅更新时间戳。
+  - 抓取成功 → 重置退避，写 `status: ok`。
+
+### 2. 旧数据保护
+- 抓取失败时**保留上一份有效的 `flights.json`**，前端继续展示最后已知快照，并标记为可能过期。
+- 失败时仍推送 `state.json`（让退避状态跨运行持久化），但绝不推送空数据覆盖线上。
+
+### 3. 多源 Provider 适配层
+- `e2e/live-data-providers.mjs` 抽象出统一的 `{ time, states }` 输出，隔离前端与上游格式。
+- 现成 `opensky` provider；预留 `licensed`（付费 API）与 `selfHosted`（自建 ADS-B 接收机）模板，接新源时无需改前端或 compact 脚本。
+
+### 4. 前端数据新鲜度提示
+- `useLiveFlights` 解析 `source` / `stale` 字段；地图页展示 **数据源徽标**、**刷新间隔** 与 **陈旧警告**（数据超过 2 小时或上游 `stale` 时置黄）。
+
+### 校验记录
+- `fetch-live.mjs` 三路径本地实测通过：**跳过**（future `nextRetryAt`）、**成功**（抓到 306 架次，写出 `source/stale/fetchedAt` 与 `state:ok`）、**失败**（未知 provider，写 `degraded` + 30min 退避，旧文件保留）。
+- `tsc -b` 与 `npm run build` 通过。

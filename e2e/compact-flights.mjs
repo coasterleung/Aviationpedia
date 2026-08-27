@@ -1,9 +1,10 @@
 import { writeFileSync, readFileSync, statSync } from 'node:fs'
 
-// args: <states-json> <output-json> [aircraft-db-csv]
+// args: <states-json> <output-json> [aircraft-db-csv] [source-id]
 const statesRaw = JSON.parse(readFileSync(process.argv[2], 'utf8'))
 const outPath = process.argv[3]
 const csvPath = process.argv[4]
+const source = process.argv[5] || 'opensky'
 
 // Build icao24 -> [typeCode, registration] lookup from OpenSky aircraft database
 const lookup = new Map()
@@ -65,7 +66,15 @@ const states = (statesRaw.states ?? []).map((s) => {
     meta?.[0] ?? null, meta?.[1] ?? null,
   ]
 })
-const out = { fetchedAt: Date.now(), time: statesRaw.time, count: states.length, states }
+const out = {
+  fetchedAt: Date.now(),
+  time: statesRaw.time,
+  count: states.length,
+  source,
+  sourceLabel: source === 'opensky' ? 'OpenSky Network (ADS-B)' : source,
+  stale: false,
+  states,
+}
 writeFileSync(outPath, JSON.stringify(out))
 console.log('compacted states:', states.length, '| size:', (statSync(outPath).size / 1024).toFixed(1), 'KB')
 

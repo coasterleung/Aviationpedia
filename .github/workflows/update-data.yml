@@ -1,0 +1,68 @@
+name: Update Encyclopedia Data
+
+# Weekly refresh of the open-data pipeline (Wikidata + OpenFlights + Wikipedia).
+# Rebuilds app/src/data/encyclopaedia.json and, only if it changed, commits and
+# pushes so the Deploy to GitHub Pages workflow re-publishes the site.
+on:
+  schedule:
+    # Every Sunday at 03:17 UTC (off-peak, non-round minute to avoid the top-of-hour rush)
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Snapshot current data hash
+        id: before
+        run: echo "hash=$(sha256sum app/src/data/encyclopaedia.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch aircraft (Wikidata SPARQL)
+        working-directory: data
+        run: node --experimental-strip-types pipeline/fetch-aircraft.ts
+
+      - name: Fetch airlines (Wikidata + OpenFlights)
+        working-directory: data
+        run: node --experimental-strip-types pipeline/fetch-airlines.ts
+
+      - name: Build encyclopedia JSON
+        working-directory: data
+        run: node --experimental-strip-types pipeline/build.ts
+
+      - name: Check for changes
+        id: after
+        run: |
+          NEW_HASH=$(sha256sum app/src/data/encyclopaedia.json | cut -d' ' -f1)
+          echo "hash=$NEW_HASH" >> "$GITHUB_OUTPUT"
+          if [ "$NEW_HASH" != "${{ steps.before.outputs.hash }}" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Data changed ($NEW_HASH); will commit."
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data change; skipping commit."
+          fi
+
+      - name: Commit and push
+        if: steps.after.outputs.changed == 'true'
+        run: |
+          git config user.name "Aviationpedia Data Bot"
+          git config user.email "data-bot@aviationpedia.local"
+          git add app/src/data/encyclopaedia.json
+          git commit -m "data: weekly refresh $(date -u +%Y-%m-%d)"
+          git push origin HEAD:${GITHUB_REF_NAME}

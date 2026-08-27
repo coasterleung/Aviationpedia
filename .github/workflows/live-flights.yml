@@ -1,0 +1,94 @@
+name: Live Flights Data
+
+on:
+  schedule:
+    # Every 5 minutes — OpenSky free tier is ~400 credits/day (288 requests at 5min cadence)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch China-region aircraft states from OpenSky
+        run: |
+          mkdir -p /tmp/live
+          curl -sS --max-time 30 \
+            -H "User-Agent: aviationpedia-live-data/0.1" \
+            "https://opensky-network.org/api/states/all?lamin=18&lomin=73&lamax=54&lomax=135" \
+            -o /tmp/live/raw.json
+          echo "raw size: $(wc -c < /tmp/live/raw.json) bytes"
+
+      - name: Get date
+        id: date
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache aircraft database (90MB, refreshed daily)
+        id: db-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/aircraftDatabase.csv
+          key: opensky-db-${{ steps.date.outputs.date }}
+
+      - name: Download aircraft database (only on cache miss)
+        if: steps.db-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL --max-time 240 \
+            -H "User-Agent: aviationpedia-live-data/0.1" \
+            "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv" \
+            -o /tmp/aircraftDatabase.csv
+          echo "db size: $(wc -c < /tmp/aircraftDatabase.csv) bytes"
+
+      - name: Compact data (join aircraft type + registration)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const raw = JSON.parse(fs.readFileSync("/tmp/live/raw.json", "utf8"));
+            // icao24 -> [type, reg] lookup from aircraftDatabase.csv (fields: icao24, registration, ..., typecode)
+            const lookup = new Map();
+            if (fs.existsSync("/tmp/aircraftDatabase.csv")) {
+              const lines = fs.readFileSync("/tmp/aircraftDatabase.csv", "utf8").split("\n");
+              for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line) continue;
+                const m = line.match(/^"([^"]*)","([^"]*)",(?:[^,]*,){3}"([^"]*)"/);
+                if (m && m[1]) lookup.set(m[1].toLowerCase(), [m[3] || "", m[2] || ""]);
+              }
+              console.log("aircraft db rows loaded:", lookup.size);
+            }
+            const states = (raw.states ?? []).map((s) => {
+              const meta = lookup.get(String(s[0]).toLowerCase());
+              return [
+                s[0], (s[1] ?? "").trim(), s[2] ?? "", s[5], s[6], s[7],
+                s[8] === true ? 1 : 0, s[9] ?? null, s[10] ?? null, s[11] ?? null, s[13] ?? null,
+                meta?.[0] ?? null, meta?.[1] ?? null,
+              ];
+            });
+            const out = { fetchedAt: Date.now(), time: raw.time, count: states.length, states };
+            fs.writeFileSync("/tmp/live/flights.json", JSON.stringify(out));
+            // small lookup for the Worker (icao24 -> [type, reg])
+            const lookupOut = {};
+            for (const s of states) if (s[11] || s[12]) lookupOut[String(s[0]).toLowerCase()] = [s[11], s[12]];
+            fs.writeFileSync("/tmp/live/lookup.json", JSON.stringify(lookupOut));
+            console.log("compacted:", states.length, "states,", (fs.statSync("/tmp/live/flights.json").size / 1024).toFixed(1), "KB, lookup:", Object.keys(lookupOut).length);
+          '
+
+      - name: Push to live-data branch (force, single commit)
+        run: |
+          git config user.name "Aviationpedia Bot"
+          git config user.email "bot@aviationpedia.local"
+          git checkout --orphan live-data
+          rm -rf ./*
+          mkdir -p data
+          cp /tmp/live/flights.json data/flights.json
+          cp /tmp/live/lookup.json data/lookup.json
+          git add -f data/flights.json data/lookup.json
+          git commit -m "live flight data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin live-data --force
